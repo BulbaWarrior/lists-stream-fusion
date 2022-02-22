@@ -1,8 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
+--
+-- hash: 5f95499b19e08106e4d1ad1f014796ad2a331bc7a2935f92d80480cfe4ca0d32
 
 name:           stream-fusion
 version:        0.1.0.0
