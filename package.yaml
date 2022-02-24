@@ -23,7 +23,8 @@ dependencies:
 - base >= 4.7 && < 5
 
 ghc-options:
-- -O2
+- -O2 -fspecialise-aggressively -flate-specialise
+
 
 library:
   source-dirs: src

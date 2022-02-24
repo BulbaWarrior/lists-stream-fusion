@@ -27,7 +27,7 @@ filter_s p (Stream next0 s0) = Stream next s0
       Skip s' -> Skip s'
       Yield x s' | p x -> Yield x s'
                  | otherwise -> Skip s'
-
+{-# INLINE append_s #-}
 append_s :: Stream a -> Stream a -> Stream a
 append_s (Stream next0 s0) (Stream next1 s1) = Stream next (Left s0)
   where
@@ -40,6 +40,9 @@ append_s (Stream next0 s0) (Stream next1 s1) = Stream next (Left s0)
       Done       -> Done
       Skip s'    -> Skip (Right s')
       Yield a s' -> Yield a (Right s')
+
+append :: [a] -> [a] -> [a]
+append a b = unstream $ append_s (stream a) (stream b)
 
 zip_s :: Stream a -> Stream b -> Stream (a, b)
 zip_s (Stream nextA sA0) (Stream nextB sB0) = Stream next (sA0, sB0, Nothing)
@@ -72,6 +75,7 @@ concatMap_s f (Stream next0 s0) = Stream next (s0, Nothing)
       Skip s1'    -> Skip (s, Just (Stream next1 s1'))
       Yield x s1' -> Yield x (s, Just (Stream next1 s1'))
 
+{-# INLINE foldl_s #-}
 foldl_s :: (b -> a -> b) -> b -> Stream a -> b
 foldl_s f z (Stream next s0) = go z s0
   where
@@ -83,6 +87,22 @@ foldl_s f z (Stream next s0) = go z s0
 foldl' :: (b -> a -> b) -> b -> [a] -> b
 foldl' f z = foldl_s f z . stream
 
+return_s :: a -> Stream a
+return_s x = Stream next True
+  where
+    next True = Yield x False
+    next False = Done
+
+enumFromTo_s :: (Enum a, Ord a) => a -> a -> Stream a
+enumFromTo_s l h = Stream next l
+  where
+    next s
+      | s > h = Done
+      | otherwise = Yield s (succ s)
+
+enumFromTo :: (Enum a, Ord a) => a -> a -> [a]
+enumFromTo l h = unstream $ enumFromTo_s l h
+
 sum' :: Num a => [a] -> a
 sum' = foldl' (+) 0
 
@@ -92,7 +112,8 @@ example xs ys = foldl_s (+) 0 (append_s (stream xs) (stream ys))
 {-# RULES "stream/unstream" forall x. stream (unstream x) = x; #-}
 {-# NOINLINE stream #-}
 {-# NOINLINE unstream #-}
-{-# INLINE append_s #-}
+
+
 stream :: [a] -> Stream a
 stream xs0 = Stream next xs0
   where
@@ -108,4 +129,7 @@ unstream (Stream next s0) = unfold s0
       Yield x s' -> x:(unfold s')
 
 main :: IO ()
-main = print $ example [1..10^7] [1..10^7]-- unstream (stream (unstream (stream [1, 2, 3])))
+example1 = foldl_s (+) 0 (append_s (enumFromTo_s 1 (10^8)) (enumFromTo_s 1 (10^8)))
+example2 = sum' $ append [1..10^7] [1..10^7]
+
+main = do print $ example1
