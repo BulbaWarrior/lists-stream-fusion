@@ -1,15 +1,37 @@
+{-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE RankNTypes                #-}
 {-# OPTIONS_GHC -ddump-simpl #-}
 {-# OPTIONS_GHC -ddump-rule-rewrites -fenable-rewrite-rules #-}
 
 module Main where
 
+import qualified GHC.Base
 
 data Stream a = forall s . Stream (s -> Step a s) s
 
-data Step a s = Done
-              | Yield a s
-              | Skip s deriving Show
+data Step a s
+  = Done
+  | Yield a s
+  | Skip s
+  deriving (Show, Functor)
+
+empty_s :: Stream a
+empty_s = Stream (const Done) ()
+
+cons_s :: a -> Stream a -> Stream a
+cons_s x (Stream next s) = Stream next' (Left x)
+  where
+    next' (Left y)  = Yield y (Right s)
+    next' (Right s) = Right <$> next s
+
+build_s :: (forall a b. (a -> b -> b) -> b -> b) -> Stream a
+build_s g = g cons_s empty_s
+
+{-# RULES "stream/build"
+      forall (g :: forall a b. (a -> b -> b) -> b -> b).
+        stream (GHC.Base.build g) = build_s g
+   #-}
 
 map_s :: (a -> b) -> Stream a -> Stream b
 map_s f (Stream next0 s0) = Stream next s0
@@ -90,7 +112,7 @@ foldl' f z = foldl_s f z . stream
 return_s :: a -> Stream a
 return_s x = Stream next True
   where
-    next True = Yield x False
+    next True  = Yield x False
     next False = Done
 
 enumFromTo_s :: (Enum a, Ord a) => a -> a -> Stream a
